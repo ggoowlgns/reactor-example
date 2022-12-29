@@ -7,9 +7,11 @@ import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import reactor.core.publisher.ConnectableFlux;
 import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
 
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -94,15 +96,34 @@ class FluxExampleTest {
         .verifyComplete();
   }
 
+    /**
+     * bug : log 는 항상 limitRate 아래 찍자 그렇지 않으면 반영이 안된다.
+     * @throws InterruptedException
+     */
   @Test
-  void fluxBackPressureWithLimitRate() {
-    Flux<Integer> flux = Flux.range(1, 10)
-        .log()
+  void fluxBackPressureWithLimitRate() throws InterruptedException {
+      AtomicInteger count = new AtomicInteger(0);
+    Flux<Integer> flux = Flux.range(1, 300)
+        .doOnRequest(value -> {
+            log.info("value : {}, count : {}", value, count.get());
+            count.getAndIncrement();
+        })
+        .subscribeOn(Schedulers.boundedElastic())
+        .doOnComplete(() -> log.info("doOnComplete"))
         .limitRate(3);
 
-    StepVerifier.create(flux)
-        .expectNext(1,2,3,4,5,6,7,8,9,10)
-        .verifyComplete();
+    flux.subscribe(
+            (s) -> log.info("nextConsumer value : {}", s),
+            throwable -> log.error("errorConsumer", throwable),
+            () -> log.info("completeRunnable count : {}", count.get())
+    );
+
+    Thread.sleep(500);
+
+
+//    StepVerifier.create(flux)
+//        .expectNext(1,2,3,4,5,6,7,8,9,10)
+//        .verifyComplete();
   }
 
   @Test

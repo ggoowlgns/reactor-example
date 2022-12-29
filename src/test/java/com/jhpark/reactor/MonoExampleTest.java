@@ -100,9 +100,15 @@ class MonoExampleTest {
         () -> log.info("[subscriber 1-a] : FINISHED"),
         subscription -> subscription.request(5)
     );
+      mono.subscribe(
+              s-> log.info("[subscriber 2-a] : {}", s),
+              t-> log.error("[subscriber 2-a] ", t),
+              () -> log.info("[subscriber 2-a] : FINISHED"),
+              subscription -> subscription.request(5)
+      );
 
     log.info("------------------------------------------------------");
-
+/*
     Mono<Object> mono2 = monoExample.makePublisher()
         .map(String::toUpperCase)
         .doOnSubscribe(subscription -> log.info("doOnSubscribe executed 2"))
@@ -116,7 +122,7 @@ class MonoExampleTest {
         t-> log.error("[subscriber 2] ", t),
         () -> log.info("[subscriber 2] : FINISHED"),
         subscription -> subscription.request(5)
-    );
+    );*/
   }
 
   @Test

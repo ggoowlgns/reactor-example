@@ -5,6 +5,7 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import reactor.blockhound.BlockHound;
 import reactor.core.publisher.Flux;
@@ -17,10 +18,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.function.Consumer;
 
 @Slf4j
 public class OperatorTest {
-  /**
+    /**
    * subscribe with in other thread
    * https://projectreactor.io/docs/core/release/reference/index.html#schedulers
    *  - Schedulers.single()
@@ -31,6 +33,7 @@ public class OperatorTest {
    *   - 두개가 섞여있는 경우
    *      - publishOn > subscribeOn : publishOn 이 힘이 더 세다
    */
+
   @Test
   void subscribeOnSimple() {
     Flux flux = Flux.range(1,400)
@@ -66,8 +69,9 @@ public class OperatorTest {
   }
 
   @Test
-  void publishOnSimple() {
+  void publishOnSimple() throws InterruptedException {
     Flux flux = Flux.range(1,400)
+            .doOnRequest(value -> log.info("doOnRequest value : {}", value))
         .map(i -> {
           log.info("Map 1 - Number {} on Thread {}", i, Thread.currentThread().getName());
           return i;
@@ -77,7 +81,11 @@ public class OperatorTest {
           log.info("Map 2 - Number {} on Thread {}", i, Thread.currentThread().getName());
           return i;
         });
-    flux.subscribe();
+    flux.subscribe(o -> log.info("nextConsumer : {}", o),
+            throwable -> log.error("errorConsumer : {}", throwable),
+            () -> log.info("completeConsumer"));
+
+    Thread.sleep(5000);
   }
 
 
@@ -134,6 +142,21 @@ public class OperatorTest {
     defer.subscribe(l -> log.info("defer time : {}", l));
     Thread.sleep(100);
     defer.subscribe(l -> log.info("defer time : {}", l));
+    Mono<Consumer> dataIsFunctionalInterfaceMono = Mono.just(new Consumer<Long>() {
+      @Override
+      public void accept(Long o) {
+          log.info("consumer time : {}", System.currentTimeMillis());
+      }
+    });
+    dataIsFunctionalInterfaceMono.subscribe(f -> f.accept(null));
+    Thread.sleep(100);
+    dataIsFunctionalInterfaceMono.subscribe(f -> f.accept(null));
+    Thread.sleep(100);
+    dataIsFunctionalInterfaceMono.subscribe(f -> f.accept(null));
+    Thread.sleep(100);
+    dataIsFunctionalInterfaceMono.subscribe(f -> f.accept(null));
+    Thread.sleep(100);
+    dataIsFunctionalInterfaceMono.subscribe(f -> f.accept(null));
   }
 
   /**
